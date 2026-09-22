@@ -10,22 +10,41 @@ To-do list simples, estática, sem build. Um `index.html`, zero dependências.
 - Barra de progresso
 - Sync entre dispositivos via [jsonbin.io](https://jsonbin.io), com fallback pra `localStorage` quando offline
 
-## Deploy no GitHub Pages
+## Deploy no GitHub Pages (com Actions)
 
-1. Sobe `index.html` na raiz do repo.
-2. Settings → Pages → Source: branch `main`, pasta `/root`.
-3. Acessa `https://<usuario>.github.io/<repo>/`.
+O site é buildado a cada push: o workflow gera `config.js` a partir de secrets do repo e publica. A chave nunca fica commitada no git.
+
+### 1. Sobe os arquivos
+
+Todo o conteúdo da pasta (`index.html`, `config.example.js`, `.gitignore`, `.github/workflows/deploy.yml`, `README.md`) na raiz do repo.
+
+### 2. Registra as secrets
+
+No repo no GitHub: **Settings → Environments → New environment**, nome `JSONBin`.
+
+Dentro dele, cria duas secrets:
+
+| Nome | Valor |
+|---|---|
+| `BINID` | o Bin ID do jsonbin.io |
+| `XMASTERKEY` | a X-Master-Key do jsonbin.io |
+
+### 3. Ativa o Pages via Actions
+
+**Settings → Pages → Source: "GitHub Actions"** (não "Deploy from a branch" — o workflow cuida disso).
+
+### 4. Push
+
+Qualquer push em `main` dispara o workflow (`.github/workflows/deploy.yml`), que builda e publica. Acompanha em **Actions**, aba do repo. Site fica em `https://<usuario>.github.io/<repo>/`.
 
 ## Sync (jsonbin)
 
-Já vem configurado com um bin próprio (`BIN_ID` + `X-Master-Key` no topo do `<script>`).
+`config.js` é gerado pelo Actions a partir das secrets — nunca commitado com valor real (está no `.gitignore`). Localmente, sem Actions, copia `config.example.js` pra `config.js` e preenche na mão pra testar.
 
-**Atenção:** essa key fica exposta no HTML público — dá acesso total ao bin (e à conta jsonbin). Aceitável pra lista pessoal de baixo risco; não reusa a mesma key em nada mais sensível.
-
-Pra trocar de bin: edita `BIN_ID` e `API_KEY` no início do script.
+**Atenção:** a chave ainda vai parar no navegador de quem abrir o site — GitHub Secret esconde ela do repositório/histórico, não do usuário final. Sem backend, não dá pra esconder de verdade. Aceitável pra lista pessoal de baixo risco; não reusa essa key em nada mais sensível.
 
 ## Limitações
 
 - Sem autenticação — qualquer um com a URL do site vê e edita a lista.
-- Sync não funciona dentro do preview do Claude (CSP bloqueia fetch externo); só funciona hospedado (GitHub Pages, Vercel, etc).
+- Sync não funciona dentro do preview do Claude (CSP bloqueia fetch externo); só funciona hospedado.
 - Sem multiusuário / sem histórico de mudanças.
