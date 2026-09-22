@@ -142,18 +142,6 @@
   var API_KEY = (window.APP_CONFIG && window.APP_CONFIG.API_KEY) || '';
   var BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
-  var defaultTasks = [
-    "Arrumar a cama","Fechar a caixa do pedido","Falar com o cliente","Recolher a roupa",
-    "Recolher os panos de prato","Organizar as caixas na sala","Organizar a gaveta de ferramentas",
-    "Organizar a bancada da cozinha","Lavar a air fryer","Limpar a Coca-Cola da geladeira",
-    "Organizar o escritório","Limpar a bancada do escritório","Limpar o computador","Arrumar a S1",
-    "Fazer orçamentos de impressão 3D","Secar filamentos","Soldar filamentos brancos",
-    "Organizar o guarda-roupa","Pintar parede no quarto","Pendurar prateleira do criado mudo",
-    "Lavar roupa de cama","Lavar toalha de banho","Prender varal de 30 metros",
-    "Montar o Lego de Hogwarts","Resolver forro do lavabo","Limpar e organizar o lavabo",
-    "Trocar o filtro de água"
-  ];
-
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   function loadLocalCache() {
@@ -219,7 +207,7 @@
       });
   }
 
-  var tasks = loadLocalCache() || defaultTasks.map(function (text) { return { id: uid(), text: text, done: false }; });
+  var tasks = loadLocalCache() || [];
   var filter = 'all';
 
   var listEl = document.getElementById('list');
