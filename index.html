@@ -37,11 +37,17 @@
     color: var(--text);
     display: flex;
     justify-content: center;
-    padding: 24px 16px 80px;
+    padding: 0 16px 80px;
   }
   .wrap { width: 100%; max-width: 560px; }
+  .header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    padding: 24px 0 14px;
+  }
   h1 { font-size: 22px; font-weight: 700; margin: 4px 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .sub-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .sub { color: var(--muted); font-size: 13px; }
   .progress-bar {
     height: 6px; background: var(--border); border-radius: 4px;
     overflow: hidden; margin-bottom: 20px;
@@ -50,7 +56,7 @@
     height: 100%; background: var(--accent); width: 0%;
     transition: width .25s ease;
   }
-  form.add-form { display: flex; gap: 8px; margin-bottom: 20px; }
+  form.add-form { display: flex; gap: 8px; margin-bottom: 14px; }
   input[type="text"] {
     flex: 1; padding: 12px 14px; border-radius: 10px;
     border: 1px solid var(--border); background: var(--card);
@@ -62,14 +68,14 @@
     background: var(--accent); color: #fff; padding: 0 18px;
     border-radius: 10px; font-weight: 600;
   }
-  .filters { display: flex; gap: 6px; margin-bottom: 14px; }
+  .filters { display: flex; gap: 6px; }
   .filters button {
     background: transparent; color: var(--muted); padding: 6px 12px;
     border-radius: 999px; font-weight: 600;
   }
   .filters button.active { background: var(--accent-light); color: var(--accent); }
   ul#list {
-    list-style: none; margin: 0; padding: 0;
+    list-style: none; margin: 0; padding: 8px 0 0; box-sizing: border-box;
     display: flex; flex-direction: column; gap: 8px;
   }
   li.task {
@@ -104,39 +110,43 @@
   }
   .del:hover { color: var(--danger); }
   .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 0; }
-  .sync-status {
-    font-size: 11px; color: var(--muted); text-align: right;
-    margin: -12px 0 16px; height: 14px;
-  }
+  .sync-status { font-size: 11px; color: var(--muted); }
   .sync-status.error { color: var(--danger); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Lista de Tarefas</h1>
-  <div class="sub" id="counter">0 de 0 concluídas</div>
-  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="header">
+    <h1>Lista de Tarefas</h1>
+    <div class="sub-row">
+      <div class="sub" id="counter">0 de 0 concluídas</div>
+      <div class="sync-status" id="syncStatus"></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
-  <form class="add-form" id="addForm">
-    <input type="text" id="newTask" placeholder="Nova tarefa..." autocomplete="off">
-    <button type="submit">Adicionar</button>
-  </form>
+    <form class="add-form" id="addForm">
+      <input type="text" id="newTask" placeholder="Nova tarefa..." autocomplete="off">
+      <button type="submit">Adicionar</button>
+    </form>
 
-  <div class="filters">
-    <button data-filter="all" class="active">Todas</button>
-    <button data-filter="pending">Pendentes</button>
-    <button data-filter="done">Concluídas</button>
+    <div class="filters">
+      <button data-filter="all" class="active">Todas</button>
+      <button data-filter="pending">Pendentes</button>
+      <button data-filter="done">Concluídas</button>
+      <button id="clearDone" style="margin-left:auto;">Limpar concluídas</button>
+    </div>
   </div>
 
   <ul id="list"></ul>
   <div class="empty" id="emptyMsg" style="display:none;">Nenhuma tarefa aqui.</div>
-  <div class="sync-status" id="syncStatus"></div>
 </div>
 
 <script src="config.js"></script>
 <script>
 (function () {
   var STORAGE_KEY = 'todo-list-v1';
+  var CLEAR_STORAGE_KEY = 'todo-last-cleared-v1';
+  var CLEAR_PERIOD_MS = 24 * 60 * 60 * 1000; // 1x ao dia
 
   var BIN_ID = (window.APP_CONFIG && window.APP_CONFIG.BIN_ID) || '';
   var API_KEY = (window.APP_CONFIG && window.APP_CONFIG.API_KEY) || '';
@@ -153,7 +163,10 @@
   }
 
   function saveLocalCache() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch (e) {}
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      localStorage.setItem(CLEAR_STORAGE_KEY, String(lastClearedAt));
+    } catch (e) {}
   }
 
   function setSyncStatus(text, isError) {
@@ -175,7 +188,7 @@
     fetch(BIN_URL, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-      body: JSON.stringify({ tasks: tasks })
+      body: JSON.stringify({ tasks: tasks, lastClearedAt: lastClearedAt })
     }).then(function (res) {
       if (!res.ok) throw new Error('status ' + res.status);
       setSyncStatus('sincronizado');
@@ -183,6 +196,16 @@
     }).catch(function () {
       setSyncStatus('sem conexão — salvo só neste aparelho', true);
     });
+  }
+
+  function clearDoneTasks(skipPush) {
+    var before = tasks.length;
+    tasks = tasks.filter(function (t) { return !t.done; });
+    lastClearedAt = Date.now();
+    saveLocalCache();
+    render();
+    if (!skipPush) saveTasks(); else pushRemote();
+    return before - tasks.length;
   }
 
   function pullRemote() {
@@ -195,12 +218,18 @@
       })
       .then(function (data) {
         var remoteTasks = data && data.record && data.record.tasks;
+        var remoteCleared = data && data.record && data.record.lastClearedAt;
+        if (typeof remoteCleared === 'number') lastClearedAt = remoteCleared;
         if (Array.isArray(remoteTasks)) {
           tasks = remoteTasks;
           saveLocalCache();
-          render();
         }
         setSyncStatus('');
+        if (Date.now() - (lastClearedAt || 0) >= CLEAR_PERIOD_MS) {
+          clearDoneTasks(false);
+        } else {
+          render();
+        }
       })
       .catch(function () {
         setSyncStatus('sem conexão — mostrando dados salvos neste aparelho', true);
@@ -208,6 +237,8 @@
   }
 
   var tasks = loadLocalCache() || [];
+  var lastClearedAt = 0;
+  try { lastClearedAt = Number(localStorage.getItem(CLEAR_STORAGE_KEY)) || 0; } catch (e) {}
   var filter = 'all';
 
   var listEl = document.getElementById('list');
@@ -216,7 +247,8 @@
   var progressFill = document.getElementById('progressFill');
   var addForm = document.getElementById('addForm');
   var newTaskInput = document.getElementById('newTask');
-  var filterBtns = document.querySelectorAll('.filters button');
+  var filterBtns = document.querySelectorAll('.filters button[data-filter]');
+  var clearDoneBtn = document.getElementById('clearDone');
   var syncStatusEl = document.getElementById('syncStatus');
 
 
@@ -379,6 +411,12 @@
       filter = btn.dataset.filter;
       render();
     });
+  });
+
+  clearDoneBtn.addEventListener('click', function () {
+    var removed = clearDoneTasks(false);
+    setSyncStatus(removed + ' concluída(s) removida(s)');
+    setTimeout(function () { setSyncStatus(''); }, 1500);
   });
 
   render();
