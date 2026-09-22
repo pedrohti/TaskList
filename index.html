@@ -133,12 +133,13 @@
   <div class="sync-status" id="syncStatus"></div>
 </div>
 
+<script src="config.js"></script>
 <script>
 (function () {
   var STORAGE_KEY = 'todo-list-v1';
 
-  var BIN_ID = '6ab284e4ffd5d160532329cc';
-  var API_KEY = '$2a$10$LM1jf/PTtNx6yjw7ALnEF.hauvO2BkG.dXKbGZMUEryXOLn7NkXUC';
+  var BIN_ID = (window.APP_CONFIG && window.APP_CONFIG.BIN_ID) || '';
+  var API_KEY = (window.APP_CONFIG && window.APP_CONFIG.API_KEY) || '';
   var BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
   var defaultTasks = [
@@ -176,6 +177,7 @@
   var remoteSaveTimer = null;
   function saveTasks() {
     saveLocalCache();
+    if (!BIN_ID || !API_KEY) { setSyncStatus('config.js ausente — salvando só local', true); return; }
     setSyncStatus('salvando...');
     clearTimeout(remoteSaveTimer);
     remoteSaveTimer = setTimeout(pushRemote, 400);
@@ -196,6 +198,7 @@
   }
 
   function pullRemote() {
+    if (!BIN_ID || !API_KEY) { setSyncStatus('config.js ausente — modo local', true); return; }
     setSyncStatus('sincronizando...');
     fetch(BIN_URL + '/latest', { headers: { 'X-Master-Key': API_KEY } })
       .then(function (res) {
