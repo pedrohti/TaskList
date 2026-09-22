@@ -23,10 +23,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate config.js from secrets
+        env:
+          BIN_ID: ${{ secrets.BINID }}
+          API_KEY: ${{ secrets.XMASTERKEY }}
         run: |
           sed \
-            -e "s|__BIN_ID__|${{ secrets.BINID }}|" \
-            -e "s|__API_KEY__|${{ secrets.XMASTERKEY }}|" \
+            -e "s|__BIN_ID__|$BIN_ID|" \
+            -e "s|__API_KEY__|$API_KEY|" \
             config.example.js > config.js
 
       - name: Upload artifact
